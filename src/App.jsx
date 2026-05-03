@@ -1,52 +1,10 @@
-import { useReducer, useEffect } from 'react'
+import { useReducer } from 'react'
 import { gameReducer, createInitialState } from './game/gameReducer.js'
+import { StockPile, WastePile, FoundationPile, TableauPile } from './components/Pile.jsx'
 import './index.css'
-
-const RED_SUITS = new Set(['hearts', 'diamonds'])
-
-function SimpleCard({ card }) {
-  if (!card.faceUp) {
-    return <div className="w-10 h-14 rounded bg-blue-700 border border-blue-500 flex-shrink-0" />
-  }
-  const red = RED_SUITS.has(card.suit)
-  return (
-    <div className={`w-10 h-14 rounded bg-white border border-gray-300 flex flex-col justify-between p-0.5 flex-shrink-0 ${red ? 'text-red-600' : 'text-gray-900'}`}>
-      <span className="text-xs font-bold leading-none">{card.value}</span>
-      <span className="text-xs leading-none capitalize">{card.suit.slice(0, 2)}</span>
-    </div>
-  )
-}
-
-function TableauColumn({ cards }) {
-  return (
-    <div className="relative flex-1" style={{ minHeight: '56px', height: `${56 + Math.max(0, cards.length - 1) * 22}px` }}>
-      {cards.length === 0 && (
-        <div className="w-10 h-14 rounded border-2 border-dashed border-green-600 opacity-40" />
-      )}
-      {cards.map((card, i) => (
-        <div key={card.id} className="absolute" style={{ top: `${i * 22}px` }}>
-          <SimpleCard card={card} />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function PilePlaceholder({ label, count }) {
-  return (
-    <div className="w-10 h-14 rounded border-2 border-dashed border-green-600 opacity-60 flex items-center justify-center flex-shrink-0">
-      <span className="text-green-400 text-xs text-center leading-tight">{label}{count > 0 ? `\n${count}` : ''}</span>
-    </div>
-  )
-}
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, null, createInitialState)
-
-  useEffect(() => {
-    console.log('Game state:', state)
-    console.log('Tableau counts:', state.tableau.map(col => col.length))
-  }, [])
 
   return (
     <div className="min-h-screen bg-green-800 flex flex-col items-center p-4">
@@ -63,20 +21,20 @@ export default function App() {
       </header>
 
       <main className="w-full max-w-5xl space-y-4">
-        {/* Top row: stock, waste, gap, foundations */}
+        {/* Top row: stock, waste, gap, 4 foundations */}
         <div className="flex items-start gap-2">
-          <PilePlaceholder label="Stock" count={state.stock.length} />
-          <PilePlaceholder label="Waste" count={state.waste.length} />
+          <StockPile cards={state.stock} />
+          <WastePile cards={state.waste} />
           <div className="flex-1" />
-          {Object.entries(state.foundations).map(([suit, cards]) => (
-            <PilePlaceholder key={suit} label={suit.slice(0, 2).toUpperCase()} count={cards.length} />
+          {['hearts', 'diamonds', 'clubs', 'spades'].map(suit => (
+            <FoundationPile key={suit} suit={suit} cards={state.foundations[suit]} />
           ))}
         </div>
 
         {/* Tableau */}
         <div className="flex gap-2 items-start">
           {state.tableau.map((col, i) => (
-            <TableauColumn key={i} cards={col} />
+            <TableauPile key={i} cards={col} />
           ))}
         </div>
       </main>
