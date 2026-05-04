@@ -23,6 +23,29 @@ export function canMoveToFoundation(card, foundationPile) {
   return card.suit === top.suit && cardValue(card.value) === cardValue(top.value) + 1
 }
 
+export function findNextFoundationMove(state) {
+  const { waste, tableau, foundations } = state
+
+  if (waste.length > 0) {
+    const card = waste[waste.length - 1]
+    if (canMoveToFoundation(card, foundations[card.suit])) {
+      return { from: { type: 'waste' }, to: { type: 'foundation', suit: card.suit } }
+    }
+  }
+
+  for (let col = 0; col < tableau.length; col++) {
+    const column = tableau[col]
+    if (column.length === 0) continue
+    const card = column[column.length - 1]
+    if (!card.faceUp) continue
+    if (canMoveToFoundation(card, foundations[card.suit])) {
+      return { from: { type: 'tableau', col, cardIndex: column.length - 1 }, to: { type: 'foundation', suit: card.suit } }
+    }
+  }
+
+  return null
+}
+
 export function findAutoMoveDestination(card, cardCount, state) {
   // Only single cards can go to foundations
   if (cardCount === 1 && canMoveToFoundation(card, state.foundations[card.suit])) {

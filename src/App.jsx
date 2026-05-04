@@ -1,6 +1,7 @@
-import { useReducer, useState } from 'react'
+import { useReducer, useState, useEffect } from 'react'
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { gameReducer, createInitialState } from './game/gameReducer.js'
+import { findNextFoundationMove } from './game/rules.js'
 import { StockPile, WastePile, FoundationPile, TableauPile } from './components/Pile.jsx'
 import Card from './components/Card.jsx'
 import './index.css'
@@ -8,6 +9,31 @@ import './index.css'
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, null, createInitialState)
   const [activeDrag, setActiveDrag] = useState(null)
+  const [autoCompleting, setAutoCompleting] = useState(false)
+
+  const isWon = Object.values(state.foundations).every(pile => pile.length === 13)
+
+  const canAutoComplete =
+    !isWon &&
+    state.stock.length === 0 &&
+    state.waste.length === 0 &&
+    state.tableau.every(col => col.every(card => card.faceUp))
+
+  useEffect(() => {
+    if (!autoCompleting || isWon) {
+      setAutoCompleting(false)
+      return
+    }
+    const timer = setTimeout(() => {
+      const move = findNextFoundationMove(state)
+      if (!move) {
+        setAutoCompleting(false)
+        return
+      }
+      dispatch({ type: 'MOVE_CARD', ...move })
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [autoCompleting, state, isWon])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -47,6 +73,14 @@ export default function App() {
           <h1 className="text-white text-2xl font-bold tracking-wide">🐾 Cat Solitaire</h1>
           <div className="flex items-center gap-3">
             <span className="text-green-300 text-sm">Moves: {state.moveCount}</span>
+            {canAutoComplete && !autoCompleting && (
+              <button
+                onClick={() => setAutoCompleting(true)}
+                className="bg-yellow-500 hover:bg-yellow-400 text-white text-sm px-3 py-1.5 rounded-md transition-colors"
+              >
+                Auto-complete
+              </button>
+            )}
             <button
               onClick={() => dispatch({ type: 'UNDO' })}
               disabled={state.history.length === 0}
@@ -90,6 +124,22 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {isWon && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 text-center shadow-2xl">
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">You won!</h2>
+            <p className="text-gray-500 mb-6">Completed in {state.moveCount} moves</p>
+            <button
+              onClick={() => dispatch({ type: 'NEW_GAME' })}
+              className="bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors"
+            >
+              Play again
+            </button>
+          </div>
+        </div>
+      )}
 
       <DragOverlay>
         {draggedCards.length > 0 && (
