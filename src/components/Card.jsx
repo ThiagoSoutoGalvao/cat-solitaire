@@ -1,3 +1,5 @@
+import { useDraggable } from '@dnd-kit/core'
+
 const SUIT_SYMBOLS = {
   hearts:   { symbol: '♥', color: 'text-red-600' },
   diamonds: { symbol: '♦', color: 'text-red-600' },
@@ -5,13 +7,31 @@ const SUIT_SYMBOLS = {
   spades:   { symbol: '♠', color: 'text-gray-900' },
 }
 
-export default function Card({ card, style = {}, className = '', onClick }) {
+export default function Card({ card, style = {}, className = '', onClick, dragId, dragData, isPartOfDrag }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: dragId ?? `static-${card.id}`,
+    data: dragData,
+    disabled: !dragId,
+  })
+
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 999 }
+    : {}
+
+  const combinedStyle = {
+    ...style,
+    ...dragStyle,
+    opacity: isDragging || isPartOfDrag ? 0.4 : 1,
+  }
+
   const clickable = !!onClick
+  const draggable = !!dragId
 
   if (!card.faceUp) {
     return (
       <div
-        style={style}
+        ref={setNodeRef}
+        style={combinedStyle}
         onClick={onClick}
         className={`w-16 h-24 rounded-lg border border-gray-400 bg-blue-700 shadow-md flex items-center justify-center flex-shrink-0 ${clickable ? 'cursor-pointer' : ''} ${className}`}
       >
@@ -24,9 +44,11 @@ export default function Card({ card, style = {}, className = '', onClick }) {
 
   return (
     <div
-      style={style}
+      ref={setNodeRef}
+      style={combinedStyle}
       onClick={onClick}
-      className={`w-16 h-24 rounded-lg border border-gray-300 bg-white shadow-md flex flex-col justify-between p-1 flex-shrink-0 select-none ${clickable ? 'cursor-pointer hover:brightness-95' : ''} ${className}`}
+      {...(draggable ? { ...listeners, ...attributes } : {})}
+      className={`w-16 h-24 rounded-lg border border-gray-300 bg-white shadow-md flex flex-col justify-between p-1 flex-shrink-0 select-none ${clickable || draggable ? 'cursor-pointer hover:brightness-95' : ''} ${className}`}
     >
       <div className={`flex flex-col items-start leading-none ${color}`}>
         <span className="text-sm font-bold leading-none">{card.value}</span>

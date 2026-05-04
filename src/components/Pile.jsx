@@ -1,3 +1,4 @@
+import { useDroppable } from '@dnd-kit/core'
 import Card from './Card.jsx'
 
 const SUIT_SYMBOLS = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' }
@@ -20,21 +21,66 @@ export function StockPile({ cards, onDraw }) {
 
 export function WastePile({ cards, onCardClick }) {
   if (cards.length === 0) return <EmptySlot label="" />
-  return <Card card={{ ...cards[cards.length - 1], faceUp: true }} onClick={onCardClick} />
+  const topCard = cards[cards.length - 1]
+  return (
+    <Card
+      card={{ ...topCard, faceUp: true }}
+      onClick={onCardClick}
+      dragId={topCard.id}
+      dragData={{ from: { type: 'waste' } }}
+    />
+  )
 }
 
 export function FoundationPile({ suit, cards }) {
-  if (cards.length === 0) return <EmptySlot label={SUIT_SYMBOLS[suit]} />
-  return <Card card={{ ...cards[cards.length - 1], faceUp: true }} />
+  const { setNodeRef, isOver } = useDroppable({
+    id: `foundation-${suit}`,
+    data: { to: { type: 'foundation', suit } },
+  })
+
+  const borderClass = isOver
+    ? 'border-yellow-300'
+    : 'border-green-500 border-opacity-50'
+
+  if (cards.length === 0) {
+    return (
+      <div
+        ref={setNodeRef}
+        className={`w-16 h-24 rounded-lg border-2 border-dashed ${borderClass} flex items-center justify-center flex-shrink-0 transition-colors`}
+      >
+        <span className="text-green-400 text-opacity-60 text-xl">{SUIT_SYMBOLS[suit]}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={setNodeRef} className="relative flex-shrink-0 w-16 h-24">
+      <Card card={{ ...cards[cards.length - 1], faceUp: true }} />
+      {isOver && (
+        <div className="absolute inset-0 rounded-lg border-2 border-yellow-300 pointer-events-none" />
+      )}
+    </div>
+  )
 }
 
-export function TableauPile({ cards, onCardClick }) {
+export function TableauPile({ cards, col, onCardClick, activeDragFrom }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `tableau-${col}`,
+    data: { to: { type: 'tableau', col } },
+  })
+
   if (cards.length === 0) {
-    return <div className="w-16 h-24 rounded-lg border-2 border-dashed border-green-500 border-opacity-50 flex-shrink-0" />
+    return (
+      <div
+        ref={setNodeRef}
+        className={`w-16 h-24 rounded-lg border-2 border-dashed ${isOver ? 'border-yellow-300' : 'border-green-500 border-opacity-50'} flex-shrink-0 transition-colors`}
+      />
+    )
   }
 
   return (
     <div
+      ref={setNodeRef}
       className="relative flex-shrink-0 w-16"
       style={{ height: `${96 + (cards.length - 1) * 28}px` }}
     >
@@ -44,8 +90,14 @@ export function TableauPile({ cards, onCardClick }) {
           card={card}
           style={{ position: 'absolute', top: `${i * 28}px` }}
           onClick={card.faceUp && onCardClick ? () => onCardClick(i) : undefined}
+          dragId={card.faceUp ? card.id : undefined}
+          dragData={card.faceUp ? { from: { type: 'tableau', col, cardIndex: i } } : undefined}
+          isPartOfDrag={activeDragFrom != null && i >= activeDragFrom}
         />
       ))}
+      {isOver && (
+        <div className="absolute inset-0 rounded-lg border-2 border-yellow-300 pointer-events-none" />
+      )}
     </div>
   )
 }
