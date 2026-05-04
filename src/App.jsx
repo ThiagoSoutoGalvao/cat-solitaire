@@ -1,13 +1,21 @@
 import { useReducer, useState, useEffect } from 'react'
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { gameReducer, createInitialState } from './game/gameReducer.js'
+import { gameReducer, createInitialState, DIFFICULTIES } from './game/gameReducer.js'
 import { findNextFoundationMove } from './game/rules.js'
 import { StockPile, WastePile, FoundationPile, TableauPile } from './components/Pile.jsx'
 import Card from './components/Card.jsx'
 import './index.css'
 
 export default function App() {
-  const [state, dispatch] = useReducer(gameReducer, null, createInitialState)
+  const [state, dispatch] = useReducer(
+    gameReducer,
+    localStorage.getItem('catSolitaire_difficulty') || 'easy',
+    createInitialState
+  )
+
+  useEffect(() => {
+    localStorage.setItem('catSolitaire_difficulty', state.difficulty)
+  }, [state.difficulty])
   const [activeDrag, setActiveDrag] = useState(null)
   const [autoCompleting, setAutoCompleting] = useState(false)
 
@@ -72,6 +80,21 @@ export default function App() {
         <header className="w-full max-w-5xl flex items-center justify-between py-3 px-4 mb-6">
           <h1 className="text-white text-2xl font-bold tracking-wide">🐾 Cat Solitaire</h1>
           <div className="flex items-center gap-3">
+            <div className="flex gap-1">
+              {Object.entries(DIFFICULTIES).map(([key, { label }]) => (
+                <button
+                  key={key}
+                  onClick={() => dispatch({ type: 'NEW_GAME', difficulty: key })}
+                  className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                    state.difficulty === key
+                      ? 'bg-white text-green-800 font-semibold'
+                      : 'bg-green-700 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <span className="text-green-300 text-sm">Moves: {state.moveCount}</span>
             {canAutoComplete && !autoCompleting && (
               <button
@@ -100,7 +123,7 @@ export default function App() {
         <main className="w-full max-w-5xl space-y-4">
           <div className="flex items-start gap-2">
             <StockPile cards={state.stock} onDraw={handleStockClick} />
-            <WastePile cards={state.waste} onCardClick={handleWasteCardClick} />
+            <WastePile cards={state.waste} drawCount={state.drawCount} onCardClick={handleWasteCardClick} />
             <div className="flex-1" />
             {['hearts', 'diamonds', 'clubs', 'spades'].map(suit => (
               <FoundationPile key={suit} suit={suit} cards={state.foundations[suit]} />

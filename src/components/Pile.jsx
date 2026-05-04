@@ -19,16 +19,43 @@ export function StockPile({ cards, onDraw }) {
   return <Card card={{ ...cards[cards.length - 1], faceUp: false }} onClick={onDraw} />
 }
 
-export function WastePile({ cards, onCardClick }) {
+export function WastePile({ cards, drawCount = 1, onCardClick }) {
   if (cards.length === 0) return <EmptySlot label="" />
-  const topCard = cards[cards.length - 1]
+
+  const visibleCount = Math.min(drawCount, cards.length)
+  const visible = cards.slice(-visibleCount)
+  const topCard = visible[visible.length - 1]
+
+  if (visibleCount === 1) {
+    return (
+      <Card
+        card={{ ...topCard, faceUp: true }}
+        onClick={onCardClick}
+        dragId={topCard.id}
+        dragData={{ from: { type: 'waste' } }}
+      />
+    )
+  }
+
   return (
-    <Card
-      card={{ ...topCard, faceUp: true }}
-      onClick={onCardClick}
-      dragId={topCard.id}
-      dragData={{ from: { type: 'waste' } }}
-    />
+    <div
+      className="relative flex-shrink-0 h-24"
+      style={{ width: 64 + (visibleCount - 1) * 16 }}
+    >
+      {visible.map((card, i) => {
+        const isTop = i === visible.length - 1
+        return (
+          <Card
+            key={card.id}
+            card={{ ...card, faceUp: true }}
+            style={{ position: 'absolute', left: i * 16 }}
+            onClick={isTop ? onCardClick : undefined}
+            dragId={isTop ? card.id : undefined}
+            dragData={isTop ? { from: { type: 'waste' } } : undefined}
+          />
+        )
+      })}
+    </div>
   )
 }
 

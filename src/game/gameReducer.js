@@ -2,7 +2,14 @@ import { createDeck, shuffle } from './deck.js'
 import { deal } from './deal.js'
 import { canMoveToTableau, canMoveToFoundation, findAutoMoveDestination } from './rules.js'
 
-export function createInitialState() {
+export const DIFFICULTIES = {
+  easy:   { label: 'Easy',   drawCount: 1, undoLimit: Infinity },
+  normal: { label: 'Normal', drawCount: 3, undoLimit: 3 },
+  hard:   { label: 'Hard',   drawCount: 3, undoLimit: 0 },
+}
+
+export function createInitialState(difficulty = 'easy') {
+  const { drawCount } = DIFFICULTIES[difficulty]
   const { tableau, stock } = deal(shuffle(createDeck()))
   return {
     tableau,
@@ -11,7 +18,8 @@ export function createInitialState() {
     waste: [],
     history: [],
     moveCount: 0,
-    drawCount: 1, // Phase 7 will set this per difficulty
+    drawCount,
+    difficulty,
   }
 }
 
@@ -23,7 +31,15 @@ function snapshot(state) {
     waste: state.waste,
     moveCount: state.moveCount,
     drawCount: state.drawCount,
+    difficulty: state.difficulty,
   }
+}
+
+function pushHistory(state) {
+  const { undoLimit } = DIFFICULTIES[state.difficulty]
+  if (undoLimit === 0) return state.history
+  const next = [...state.history, snapshot(state)]
+  return undoLimit === Infinity ? next : next.slice(-undoLimit)
 }
 
 function flipTopCard(tableau, col) {
@@ -38,7 +54,7 @@ export function gameReducer(state, action) {
   switch (action.type) {
 
     case 'NEW_GAME':
-      return createInitialState()
+      return createInitialState(action.difficulty || state.difficulty)
 
     case 'DRAW': {
       if (state.stock.length === 0) {
@@ -47,7 +63,7 @@ export function gameReducer(state, action) {
           ...state,
           stock: [...state.waste].reverse().map(c => ({ ...c, faceUp: false })),
           waste: [],
-          history: [...state.history, snapshot(state)],
+          history: pushHistory(state),
         }
       }
       const drawn = state.stock
@@ -57,7 +73,7 @@ export function gameReducer(state, action) {
         ...state,
         stock: state.stock.slice(0, -state.drawCount),
         waste: [...state.waste, ...drawn],
-        history: [...state.history, snapshot(state)],
+        history: pushHistory(state),
       }
     }
 
@@ -68,7 +84,6 @@ export function gameReducer(state, action) {
       let newFoundations = state.foundations
       let newWaste = state.waste
 
-      // Extract cards from source
       if (from.type === 'waste') {
         if (state.waste.length === 0) return state
         movingCards = [state.waste[state.waste.length - 1]]
@@ -88,7 +103,6 @@ export function gameReducer(state, action) {
         newFoundations = { ...state.foundations, [from.suit]: pile.slice(0, -1) }
       }
 
-      // Validate and apply destination
       const card = movingCards[0]
       if (to.type === 'tableau') {
         if (from.type === 'tableau' && from.col === to.col) return state
@@ -106,7 +120,7 @@ export function gameReducer(state, action) {
         foundations: newFoundations,
         waste: newWaste,
         moveCount: state.moveCount + 1,
-        history: [...state.history, snapshot(state)],
+        history: pushHistory(state),
       }
     }
 
